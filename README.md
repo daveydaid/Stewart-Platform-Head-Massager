@@ -4,4 +4,4 @@
 
 # Detailed Blog Post: 
 
-[https://davidmcdaid.wordpress.com/](url)
+[https://davidmcdaid.wordpress.com/](https://davidmcdaid.wordpress.com/)

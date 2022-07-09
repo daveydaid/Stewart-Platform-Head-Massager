@@ -1,11 +1,16 @@
-/*
- *
- *
- *
- */
+/**************************************************************************
+ * FILE NAME: Project.h                                                   *
+ * DESCRIPTION: Contains all #defines for the pin config of Mega2560 and  *
+ *              some hard defines for the AX-12A servos                   *
+ *                                                                        *
+ * VERSION: 1 (02/03/2022)                                                *
+ *************************************************************************/
 
 #ifndef PROJECT_h
 #define PROJECT_h
+
+#define MOTOR_DIRECTION_PIN  10
+#define SERVO_CONNECT_CONFIRM_PIN  13
 
 #define MIN_ANGLE         0
 #define MIN_ANGLE_VALUE   0

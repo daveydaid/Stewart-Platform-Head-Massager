@@ -1,14 +1,26 @@
-/*
- * Example showing how to send positions to multiple AX-12A motors
- */
+/*#####################################################################################################
+#
+# Title:    Stewart_platform_control
+# Version:  2.0
+# Auth:     DMcD
+#
+# TODO: - Add an 'establish_connection' routine
+#       - Add error conditions for failed transactions
+#
+#####################################################################################################*/
 
+/*#####################################################################################################
+# PROJECT INCLUDES
+#####################################################################################################*/
 #include "Project.h"
 #include "Arduino.h"
 #include "AX12A.h"
 
+/*#####################################################################################################
+# PREPROCESSOR DIRECTIVES
+#####################################################################################################*/
 #define DEBUG_PRINTS 0
 
-#define MOTOR_DIRECTION_PIN  10
 #define MOTOR_BAUDRATE      1000000
 #define MOTOR_1_ID    1     //Default direction = Left
 #define MOTOR_2_ID    2     //Default direction = Right
@@ -21,38 +33,29 @@
 
 #define processing3 Serial3
 
+/*#####################################################################################################
+# GLOBAL VARIABLES
+#####################################################################################################*/                     
 String str; // Data received from the serial port
 
-char *strings[6]; // an array of pointers to the pieces of data we dervie after strtok()
+char *strings[6]; // an array of pointers to the pieces of data we derive after strtok()
 char *ptr = NULL;
 
 float servoAngles[5] = {};
 int scaledServoAngles[5] = {};
 
-void setup()
-{
-
-  Serial.begin(115200);
-  delay(1000); //To avoid initial garbage prints
-  Serial.println("Application starting");
-
-  Serial.print("Baud rate:");
-  Serial.println(MOTOR_BAUDRATE);
-
-  //Open connection with P3
-  processing3.begin(500000);    
-
-  //Open connection with servo "bus"
-  ax12a.begin(MOTOR_BAUDRATE, MOTOR_DIRECTION_PIN, &Serial1); //TX1 - 18, RX1 - 19
-  delay(1000);
-
-  //Test basic connections to each motor
-  for(int i = 1; i < NUMBER_OF_MOTORS+1; i++)
-  {
-    basicPingandStatus(i);
-  }   
-}
-
+/*#####################################################################################################
+# FUNCTIONS
+#####################################################################################################*/
+/*#####################################################################################################
+# Function:     basicPingandStatus
+#
+# Description:  Perform a "ping" of any given motor ID. Failed response will halt program. Successful
+#               pings will turn on motor LED and print full EEPROM area to serial monitor. 
+#
+# Inputs:       unsigned char MOTORID    
+# Retuns:       n/a 
+#####################################################################################################*/
 void basicPingandStatus(unsigned char MOTORID)
 {
   Serial.println("------------------------------------------");
@@ -78,9 +81,17 @@ void basicPingandStatus(unsigned char MOTORID)
   printEEPROMArea(MOTORID);
 }
 
+/*#####################################################################################################
+# Function:     printEEPROMArea
+#
+# Description:  Prints full contents of all registers from given motor ID 
+#
+# Inputs:       unsigned char MOTORID    
+# Retuns:       n/a
+#####################################################################################################*/
 void printEEPROMArea(unsigned char ID_NUMBER)
 {
-  // Print entire EEPROM Area (https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/)
+  // Refer to: https://emanual.robotis.com/docs/en/dxl/ax/ax-12a/
   
   Serial.print("AX_MODEL_NUMBER_L: ");
   Serial.println(ax12a.readRegister(ID_NUMBER, AX_MODEL_NUMBER_L, AX_DOUBLE_BYTE_READ));
@@ -124,9 +135,80 @@ void printEEPROMArea(unsigned char ID_NUMBER)
   Serial.print("AX_ALARM_SHUTDOWN: ");
   Serial.println(ax12a.readRegister(ID_NUMBER, AX_ALARM_SHUTDOWN, AX_BYTE_READ));                           
 
-  delay(500);  
+  delay(250);  
 }
 
+/*#####################################################################################################
+# Function:     clearInputBuffer
+#
+# Description:  Ensures that there is no outstanding data waiting on the serial line
+#
+# Inputs:       HardwareSerial port   
+# Retuns:       n/a
+#####################################################################################################*/
+void clearInputBuffer(HardwareSerial port) {
+  while (port.available() > 0) {
+    port.read();
+  }
+}
+
+/*#####################################################################################################
+# Function:     scale
+#
+# Description:  Takes values from one scale and converts between two values of another scale
+#
+# Inputs:       float value, float inMin, float inMax, int outMin, int outMax   
+# Retuns:       int(result)
+#####################################################################################################*/
+//Derived from: https://writingjavascript.com/scaling-values-between-two-ranges
+int scale(float value, float inMin, float inMax, int outMin, int outMax) {
+  const float result = (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+
+  if (result < outMin) {
+    return outMin;
+  } else if (result > outMax) {
+    return outMax;
+  }
+
+  return int(result);
+}
+
+/*#####################################################################################################
+#####################################        SETUP        #############################################
+#####################################################################################################*/
+void setup()
+{
+
+  Serial.begin(115200);
+  delay(1000); //To avoid initial garbage prints
+  Serial.println("Application starting");
+
+  Serial.print("Baud rate:");
+  Serial.println(MOTOR_BAUDRATE);
+
+  // Configure pin to LED to signify successful servo connection
+  pinMode (SERVO_CONNECT_CONFIRM_PIN, OUTPUT);
+  digitalWrite(SERVO_CONNECT_CONFIRM_PIN, LOW); // OFF by default
+
+  //Open connection with P3
+  processing3.begin(500000); //TX3 - 14, RX3 - 15
+
+  //Open connection with servo "bus"
+  ax12a.begin(MOTOR_BAUDRATE, MOTOR_DIRECTION_PIN, &Serial1); //TX1 - 18, RX1 - 19
+  delay(1000);
+
+  //Test basic connections to each motor
+  for(int i = 1; i < NUMBER_OF_MOTORS+1; i++)
+  {
+    basicPingandStatus(i);
+  }
+  
+  digitalWrite(SERVO_CONNECT_CONFIRM_PIN, HIGH); // ON after successful pings
+}
+
+/*#####################################################################################################
+###################################        MAIN LOOP        ###########################################
+#####################################################################################################*/
 void loop()
 {
 #if DEBUG_PRINTS     
@@ -192,23 +274,4 @@ void loop()
   Serial.println("----------- End of one loop -----------");
 #endif     
   delay(20);
-}
-
-void clearInputBuffer(HardwareSerial port) {
-  while (port.available() > 0) {
-    port.read();
-  }
-}
-
-//Derived from: https://writingjavascript.com/scaling-values-between-two-ranges
-int scale(float value, float inMin, float inMax, int outMin, int outMax) {
-  const float result = (value - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-
-  if (result < outMin) {
-    return outMin;
-  } else if (result > outMax) {
-    return outMax;
-  }
-
-  return int(result);
 }

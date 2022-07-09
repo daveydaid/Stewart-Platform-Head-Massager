@@ -1,6 +1,6 @@
 # Stewart-Gough Robotic Platform
 
-![](other/ezgif-2-702b483417.gif)
+![](other/SP_proto_1.gif)
 
 # Detailed Blog Post: 
 

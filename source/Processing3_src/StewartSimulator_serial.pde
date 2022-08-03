@@ -1,9 +1,9 @@
 import processing.serial.*; //<>//
 
-import peasy.*; //<>// //<>// //<>// //<>// //<>//
+import peasy.*; //<>//
 import controlP5.*;
 import oscP5.*;
-import netP5.*; //osc library
+import netP5.*;
 
 float MAX_TRANSLATION = 40;
 float MAX_ROTATION = PI/3;    //60 degrees either direction (doesn't change the sim?)
@@ -18,6 +18,7 @@ OscP5 oscP5;
 
 Serial arduino;  // setting a serial port
 String val;
+
 // since we're doing serial handshaking, 
 // we need to check if we've heard from the microcontroller
 boolean firstContact = true;
@@ -27,6 +28,8 @@ float modeCounter = 0, radiusCounter = 0.004;
 int dir = 1;
 int test_flag0 = 0, test_flag1 = 0;
 int modeSelect = 0;
+int moveSelect = 0;
+int storedMove = 1;
 boolean ctlPressed = false;
 
 void setup() {
@@ -35,15 +38,13 @@ void setup() {
   frameRate(60);
   textSize(20);
   
-  //println(Serial.list());  //For checking COM list
-  
+  //println(Serial.list());  //Temp debug: For checking COM list
   //boolean i = true;
-  
   //while(i){
   //}
   
-  ////Config the serial port
-  arduino = new Serial(this, Serial.list()[0], 500000);  //the [] is based on array... So if "COM3 COM4 COM5" for COM4 it would be [1]
+  //Config the serial port
+  arduino = new Serial(this, Serial.list()[1], 500000);  //the [] is based on array... So if "COM3 COM4 COM5" for COM4 it would be [1]
   delay(500);
   arduino.bufferUntil('\n'); 
 
@@ -56,6 +57,7 @@ void setup() {
 
   cp5 = new ControlP5(this);
 
+  //Add slider bars --------------------
   cp5.addSlider("posX")
     .setPosition(20, 20)
     .setSize(180, 40).setRange(-1, 1);
@@ -79,7 +81,8 @@ void setup() {
   cp5.addSlider("speed")
     .setPosition(width-220, 175)
     .setSize(180, 40).setRange(0, 0.1);  
-    
+
+ //Add buttons to enable modes --------------------
  cp5.addButton("Reset")
     .setPosition(275,20)
     .setSize(40, 40)
@@ -89,6 +92,11 @@ void setup() {
     .setPosition(375,20)
     .setSize(40, 40)
     .activateBy(ControlP5.PRESS);   
+    
+ cp5.addButton("Combo")
+    .setPosition(375,70)
+    .setSize(40, 40)
+    .activateBy(ControlP5.PRESS);     
     
  cp5.addButton("Planar_Circle")
     .setPosition(475,20)
@@ -102,6 +110,11 @@ void setup() {
     
  cp5.addButton("Helical")
     .setPosition(575,70)
+    .setSize(40, 40)
+    .activateBy(ControlP5.PRESS);  
+    
+ cp5.addButton("RAPID")
+    .setPosition(575,120)
     .setSize(40, 40)
     .activateBy(ControlP5.PRESS);     
 
@@ -130,16 +143,7 @@ void draw() {
     PVector.mult(new PVector(rotX, rotY, rotZ), MAX_ROTATION));
   mPlatform.draw();
   
-  //// draw the button(s) in the window
-  //curveButton.Draw();
-  
-  //if (curveButton.MouseIsOver()) 
-  //{
-  //  modeSelect = 1;
-  //}
-  
-  //test------------------
-  
+  // Mode Selects from Buttons ------------------
   switch (modeSelect) {
     case 0:
       // NOTHING
@@ -150,7 +154,7 @@ void draw() {
       {
         rotX = (0.3*sin(modeCounter));
         rotY = (0.3*cos(modeCounter));
-        
+               
         modeCounter = modeCounter + speed;
       }
       break;    
@@ -213,12 +217,66 @@ void draw() {
         
         modeCounter = modeCounter + speed;
       }
+      break;
+    case 8:
+      // Vertical ting - RAPID
+      if (modeCounter <= 360)
+      {
+        posZ = (0.125*cos(modeCounter));
+        
+        //rotY = (-0.1*cos(modeCounter*2.5));
+        
+        modeCounter = modeCounter + (speed*2.5);
+      }
+      break;
+    case 9:
+      // COMBO TING
+      if (modeCounter <= 360)
+      {
+        switch (moveSelect) {
+          case 0:  // Normal - middle
+          rotX = 0;
+          rotY = 0;
+          posZ = (0.125*cos(modeCounter));
+          modeCounter = modeCounter + (speed*2);
+          break;
+          
+          case 1:  // LEFT
+          rotX = (-0.05*cos(modeCounter));
+          posZ = (0.125*cos(modeCounter));
+          modeCounter = modeCounter + (speed*2);
+          break;   
+          
+          case 2:  // RIGHT
+          rotX = (0.05*cos(modeCounter));
+          posZ = (0.125*cos(modeCounter));
+          modeCounter = modeCounter + (speed*2);
+          break;
+          
+          case 3:  // FORWARD
+          rotY = (0.05*cos(modeCounter));
+          posZ = (0.125*cos(modeCounter));
+          modeCounter = modeCounter + (speed*2);
+          break;    
+          
+          case 4:  // BACKWARD
+          rotY = (-0.05*cos(modeCounter));
+          posZ = (0.125*cos(modeCounter));
+          modeCounter = modeCounter + (speed*2);
+          break;             
+          
+          default:
+          //NOTHING
+          break;    
+        }
+      }
       break;       
     default:
       //NOTHING
       break;    
   }
   
+  //DEBUG PRINTS
   //print("modeCounter: ");
   //println(modeCounter);
     
@@ -226,6 +284,34 @@ void draw() {
   if (modeCounter >= 360)
   {
     modeCounter = 0;
+  }
+  
+  // For "COMBO ting" mode
+  if ((floor(modeCounter) % 9) == 0)
+  {
+    if (storedMove == moveSelect)
+    {
+      //NOTHING
+    }
+    else
+    {
+      moveSelect++;
+      storedMove = moveSelect;
+    }
+  }
+  else
+  {
+    storedMove++;
+  }
+    
+  //DEBUG PRINTS
+  //print("moveSelect: ");
+  //println(moveSelect);
+   
+  // Ensure moveSelect is reset  
+  if (moveSelect > 4)
+  {
+    moveSelect = 0;
   }
   
   if (radiusCounter >= 1.5)
@@ -242,7 +328,6 @@ void draw() {
     dir = 1;
   }   
   
-
   hint(DISABLE_DEPTH_TEST);
   camera.beginHUD();
   cp5.draw();
@@ -257,63 +342,71 @@ void mouseReleased() {
   camera.setActive(true);
 }
 
+// Codes that are activated by button presses --------------------
 public void Reset(){
-  // This is the place for the code, that is activated by the buttonb
   println("Reset button pressed (modeSelect = 0)");
   
   posX=0; posY=0; posZ=0; rotX=0; rotY=0; rotZ=0; speed=0.01;  
   
+  modeCounter = 0;
   modeSelect = 0;
 }
 
 public void Curve(){
-  // This is the place for the code, that is activated by the buttonb
   println("Curve button pressed (modeSelect = 1)");
   modeSelect = 1;
 }
 
+public void Combo(){
+  println("Combo button pressed (modeSelect = 9)");
+  modeSelect = 9;
+}
+
 public void Planar_Circle(){
-  // This is the place for the code, that is activated by the buttonb
   println("Planar_Circle button pressed (modeSelect = 2)");
   modeSelect = 2;  
 }
 
 public void Vertical(){
-  // This is the place for the code, that is activated by the buttonb
   println("Vertical button pressed (modeSelect = 3)");
   modeSelect = 3;  
 }
 
 public void Twist(){
-  // This is the place for the code, that is activated by the buttonb
   println("Twist button pressed (modeSelect = 4)");
   modeSelect = 4;  
 }
 
 public void Planar_Eight(){
-  // This is the place for the code, that is activated by the buttonb
   println("Planar_Eight button pressed (modeSelect = 5)");
   modeSelect = 5;  
 }
 
 public void Spiral(){
-  // This is the place for the code, that is activated by the buttonb
   println("Spiral button pressed (modeSelect = 6)");
   modeSelect = 6;  
 }
 
 public void Helical(){
-  // This is the place for the code, that is activated by the buttonb
   println("Helical button pressed (modeSelect = 7)");
   modeSelect = 7;  
 }
 
-long lastTime = 0;          // ???????????
+public void RAPID(){
+  println("RAPID button pressed (modeSelect = 8)");
+  modeSelect = 8;  
+}
+
+//void mouseDragged () {
+//  if (ctlPressed) {
+//    posX = map(mouseX, 0, width, -1, 1);
+//    posY = map(mouseY, 0, height, -1, 1);
+//  }
+//}
 
 void mouseDragged () {
   if (ctlPressed) {
-    posX = map(mouseX, 0, width, -1, 1);
-    posY = map(mouseY, 0, height, -1, 1);
+    posZ = map(mouseX, 0, width, -1, 1);
   }
 }
 
